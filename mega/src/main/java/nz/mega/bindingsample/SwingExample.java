@@ -31,13 +31,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -404,8 +400,7 @@ public class SwingExample extends JFrame implements MegaRequestListenerInterface
 				@Override
 				public void onTransferStart(MegaApiJava api, MegaTransfer transfer) {
 					// TODO Auto-generated method stub
-					String buffer = transfer.getLastBytes();
-					long sizeBuffer = transfer.getDeltaSize();
+					
 				}
 
 				@Override
@@ -416,8 +411,7 @@ public class SwingExample extends JFrame implements MegaRequestListenerInterface
 				@Override
 				public void onTransferUpdate(MegaApiJava api, MegaTransfer transfer) {
 					// TODO Auto-generated method stub
-					String buffer = transfer.getLastBytes();
-					long sizeBuffer = transfer.getDeltaSize();
+					
 				}
 
 				@Override
@@ -460,25 +454,6 @@ public class SwingExample extends JFrame implements MegaRequestListenerInterface
   
     }
     
-    
-    
-    
-    public static void downloadFileFromByte(byte[] buffer, File destination) throws Exception {
-    	FileOutputStream fileout = new FileOutputStream(destination);
-    	fileout.write(buffer);
-    }
-    
-    private static void writeBytesToFileNio(byte[] bFile, String fileDest) {
-
-        try {
-            Path path = Paths.get(fileDest);
-            Files.write(path, bFile);
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println(e);
-        }
-
-    }
     
     
     @Override
