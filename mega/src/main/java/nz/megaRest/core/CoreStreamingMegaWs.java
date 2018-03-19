@@ -36,28 +36,28 @@ MegaGlobalListenerInterface {
 	 * Mega SDK application key.
 	 * Generate one for free here: https://mega.nz/#sdk
 	 */
-	static final String APP_KEY = "YYJwAIRI";
+	public static final String APP_KEY = "YYJwAIRI";
 
 	/** Condition variable to signal asynchronous continuation. */
-	private Object continueEvent = null;
+	public Object continueEvent = null;
 
 	/** Signal for condition variable to indicate signalling. */
-	private boolean wasSignalled = false ;
+	public boolean wasSignalled = false ;
 
 	/** Root node of the logged in account. */
-	private MegaNode rootNode = null;
+	public MegaNode rootNode = null;
 
 	/** Java logging utility. */
     static final Logger logger = LogManager.getLogger(CoreStreamingMegaWs.class);
 
-    private static final String STR_ERROR_INCORRECT_EMAIL_OR_PWD = "Incorrect email or password";
-    private static String codEsito;
-    private static String errorMessage;
-    private static MegaNode temp ;	
-    private static HashMap<Integer, String> listModel;
-    private static int nodeIndex;
-    private static String nodeName;
-	private static byte[] buffering;
+    public static final String STR_ERROR_INCORRECT_EMAIL_OR_PWD = "Incorrect email or password";
+    public static String codEsito;
+    public static String errorMessage;
+    public static MegaNode temp ;	
+    public static HashMap<Integer, String> listModel;
+    public static int nodeIndex;
+    public static String nodeName;
+    public static byte[] buffering;
 	/** Constructor. */
 	public CoreStreamingMegaWs() {
 		// Make a new condition variable to signal continuation.
@@ -69,6 +69,38 @@ MegaGlobalListenerInterface {
 			megaApi = new MegaApiJava(CoreStreamingMegaWs.APP_KEY, path);
 		}
 	}
+	
+	
+	
+	public void initPlayStreaming(String email, String password,int nodeIndex,String nodeName) {
+		// Log in.
+		logger.info("*** start: login ***");
+		CoreStreamingMegaWs myListener = new CoreStreamingMegaWs();
+		
+		synchronized(myListener.continueEvent) {
+			setNodeIndex(nodeIndex);
+			setNodeName(nodeName);
+			logger.info("*** indice del nodo ***"+ nodeIndex);
+			logger.info("*** nome del nodo ***"+ nodeName);
+			megaApi.login(email, password, myListener);
+			while (!myListener.wasSignalled) {
+				try {
+					myListener.continueEvent.wait();
+				} catch(InterruptedException e) {
+					logger.info("login interrupted: " + e.toString());
+				}
+			}
+			
+			 playStreaming(myListener);
+			 logout(myListener);
+			 myListener.wasSignalled = false;
+			
+		}
+			
+	}
+
+	
+	
 	
 	
 	public LoginNzResponse initStreaming(String email, String password,int nodeIndex,String nodeName) {
@@ -97,8 +129,6 @@ MegaGlobalListenerInterface {
 		}
 			
 	}
-
-	
 	
 	public LoginNzResponse initDownload(String email, String password,int nodeIndex,String nodeName) {
 		// Log in.
@@ -128,10 +158,38 @@ MegaGlobalListenerInterface {
 	}
 	
 	
+	
+	// Log in
+	public LoginNzResponse login(String email, String password,int nodeIndex,String nodeName) {
+		
+		logger.info("*** start: login ***");
+		CoreStreamingMegaWs myListener = new CoreStreamingMegaWs();
+		
+		synchronized(myListener.continueEvent) {			
+			setNodeIndex(nodeIndex);
+			setNodeName(nodeName);
+			logger.info("*** indice del nodo ***"+ nodeIndex);
+			logger.info("*** nome del nodo ***"+ nodeName);
+			megaApi.login(email, password, myListener);
+			while (!myListener.wasSignalled) {
+				try {
+					myListener.continueEvent.wait();
+				} catch(InterruptedException e) {
+					logger.info("login interrupted: " + e.toString());
+				}
+			}			
+			myListener.wasSignalled = false;
+			logger.info("*** done: login ***");
+			 return new LoginNzResponse (codEsito,errorMessage,megaApi,temp,myListener) ;
+		}
+			
+	}
+	
     // Logout.
     public void logout(CoreStreamingMegaWs myListener) {
 	logger.info("*** start: logout ***");
-    synchronized(myListener.continueEvent) {
+	myListener.wasSignalled = false;
+	synchronized(myListener.continueEvent) {
         megaApi.logout(myListener);
         while (!myListener.wasSignalled) {
             try {
@@ -147,6 +205,27 @@ MegaGlobalListenerInterface {
     
 }
 	
+    // Logout.
+    public void logout(CoreStreamingMegaWs myListener, MegaApiJava megaApi) {
+	logger.info("*** start: logout ***");
+	myListener.wasSignalled = false;
+	synchronized(myListener.continueEvent) {
+        megaApi.logout(myListener);
+        while (!myListener.wasSignalled) {
+            try {
+                myListener.continueEvent.wait();
+            } catch(InterruptedException e) {
+                logger.warn("remove interrupted: " + e.toString());
+            }
+        }
+        myListener.wasSignalled = false;
+    }
+    myListener.rootNode = null;
+    logger.info("*** done: logout ***");
+    
+}
+    
+    
     // Streaming.
     public void streaming(CoreStreamingMegaWs myListener) {
 	logger.info("*** start: streaming ***");
@@ -167,6 +246,30 @@ MegaGlobalListenerInterface {
     logger.info("*** done: streaming ***");
     
 }   
+ 
+    // Play Streaming.
+    public void playStreaming(CoreStreamingMegaWs myListener) {
+	logger.info("*** start: playStreaming ***");
+	logger.info("*** Play Streaming ***" + temp.getName());
+	myListener.wasSignalled = false;
+    synchronized(myListener.continueEvent) {
+    	megaApi.startStreaming(temp, 0, temp.getSize(), myListener );  
+    	while (!myListener.wasSignalled) {
+            try {
+            	myListener.continueEvent.wait();
+
+            } catch(InterruptedException e) {
+                logger.warn("remove interrupted: " + e.toString());
+            }
+        }
+        myListener.wasSignalled = false;
+    }
+   
+    logger.info("*** done: streaming ***");
+    
+}   
+    
+    
     
     
     // Download a file (read).
@@ -314,19 +417,6 @@ MegaGlobalListenerInterface {
 			MegaError e) {
 		logger.info("Transfer finished (" + transfer.getFileName()
 		+ "); Result: " + e.toString() + " ");
-		logger.info(buffering);
-		/*	 File file = new File("c:\\log\\"+nodeName);
-		  
-	        try {
-	 
-	            OutputStream os = new FileOutputStream(file);
-	            os.write(buffer);
-	            logger.info("Write bytes to file.");
-	            printContent(file);
-	            os.close();
-	        } catch (Exception e) {
-	            e.printStackTrace();
-	        }*/
 		 // Signal the other thread we're done.
         synchronized(this.continueEvent){
             this.wasSignalled = true;
@@ -342,23 +432,40 @@ MegaGlobalListenerInterface {
 	@Override
 	public void onTransferUpdate(MegaApiJava api, MegaTransfer transfer) {
 		logger.info("Transfer update (" + transfer.getFileName()
-		+ "): " + transfer.getSpeed() + " B/s ");
-		FileOutputStream fos;
-		try {
-			
-			fos = new FileOutputStream(new File ("C:\\log\\pippo.mp4"), true);
-			if(buffering != null) 
-			fos.write(buffering);
-			fos.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			
-			e.printStackTrace();
-		}
-		
+		+ "): " + transfer.getSpeed() + " B/s ");		
+		writeOnFile(buffering);		
 		logger.info(buffering);
 	}
 
+
+
+
+      public void writeOnFile(byte[] buffering) {
+		FileOutputStream fos;
+		try {
+			
+			fos = new FileOutputStream(new File ("C:\\log\\pippo.pdf"), true);
+			if(buffering != null) fos.write(buffering);		
+			fos.close();
+			} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			}
+		}
+      
+      
+     /* public ByteArrayInputStream writeOnStream(byte[] buffering) {
+    	 InputStream is;
+  		try {
+  			
+  			is = new InputStream;
+  			if(buffering != null) bais.		
+  			fos.close();
+  			} catch (IOException e) {
+  			// TODO Auto-generated catch block
+  			e.printStackTrace();
+  			}
+  		}*/
 	/**
 	 * {@inheritDoc}
 	 *
