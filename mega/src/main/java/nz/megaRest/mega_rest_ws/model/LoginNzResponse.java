@@ -1,5 +1,6 @@
 package nz.megaRest.mega_rest_ws.model;
 
+import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 
 import nz.mega.sdk.MegaApiJava;
@@ -14,10 +15,17 @@ public class LoginNzResponse {
 	public MegaApiJava megaApi;
 	public MegaNode temp;	
 	public CoreStreamingMegaWs myListener;
+	public ByteArrayOutputStream bos;
 
 	public LoginNzResponse(String codEsito, String descEsito) {
 		this.codEsito = codEsito;
 		this.descEsito = descEsito;
+	}
+	
+	public LoginNzResponse(String codEsito, String descEsito,ByteArrayOutputStream bos) {
+		this.codEsito = codEsito;
+		this.descEsito = descEsito;
+		this.bos = bos;
 	}
 	
 	public LoginNzResponse(String codEsito, String descEsito,  HashMap<Integer, String> listModel) {
@@ -112,6 +120,14 @@ public class LoginNzResponse {
 
 	public void setMyListener(CoreStreamingMegaWs myListener) {
 		this.myListener = myListener;
+	}
+
+	public ByteArrayOutputStream getBos() {
+		return bos;
+	}
+
+	public void setBos(ByteArrayOutputStream bos) {
+		this.bos = bos;
 	}
 
 	

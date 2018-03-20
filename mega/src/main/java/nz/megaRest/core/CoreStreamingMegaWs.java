@@ -1,15 +1,21 @@
 package nz.megaRest.core;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.stereotype.Component;
 
 import nz.mega.sdk.MegaApiJava;
@@ -58,6 +64,9 @@ MegaGlobalListenerInterface {
     public static int nodeIndex;
     public static String nodeName;
     public static byte[] buffering;
+	public static HttpServletResponse response;
+	public static ByteArrayOutputStream bos;
+
 	/** Constructor. */
 	public CoreStreamingMegaWs() {
 		// Make a new condition variable to signal continuation.
@@ -72,7 +81,7 @@ MegaGlobalListenerInterface {
 	
 	
 	
-	public void initPlayStreaming(String email, String password,int nodeIndex,String nodeName) {
+	public LoginNzResponse initPlayStreaming(String email, String password,int nodeIndex,String nodeName) {
 		// Log in.
 		logger.info("*** start: login ***");
 		CoreStreamingMegaWs myListener = new CoreStreamingMegaWs();
@@ -94,7 +103,7 @@ MegaGlobalListenerInterface {
 			 playStreaming(myListener);
 			 logout(myListener);
 			 myListener.wasSignalled = false;
-			
+			 return new LoginNzResponse (codEsito,errorMessage,bos) ;
 		}
 			
 	}
@@ -122,7 +131,7 @@ MegaGlobalListenerInterface {
 				}
 			}
 			
-			streaming(myListener);
+			playStreaming(myListener);
 			logout(myListener);
 			myListener.wasSignalled = false;
 			 return new LoginNzResponse (codEsito,errorMessage) ;
@@ -405,6 +414,7 @@ MegaGlobalListenerInterface {
 	@Override
 	public void onTransferStart(MegaApiJava api, MegaTransfer transfer) {
 		logger.info("Transfer start: " + transfer.getFileName());
+		bos = new ByteArrayOutputStream((int)transfer.getDeltaSize());
 	}
 
 	/**
@@ -418,7 +428,8 @@ MegaGlobalListenerInterface {
 		logger.info("Transfer finished (" + transfer.getFileName()
 		+ "); Result: " + e.toString() + " ");
 		 // Signal the other thread we're done.
-        synchronized(this.continueEvent){
+        
+		synchronized(this.continueEvent){
             this.wasSignalled = true;
             this.continueEvent.notify();
         }
@@ -433,39 +444,11 @@ MegaGlobalListenerInterface {
 	public void onTransferUpdate(MegaApiJava api, MegaTransfer transfer) {
 		logger.info("Transfer update (" + transfer.getFileName()
 		+ "): " + transfer.getSpeed() + " B/s ");		
-		writeOnFile(buffering);		
+		writeOnStream(buffering);		
 		logger.info(buffering);
+		
 	}
 
-
-
-
-      public void writeOnFile(byte[] buffering) {
-		FileOutputStream fos;
-		try {
-			
-			fos = new FileOutputStream(new File ("C:\\log\\pippo.pdf"), true);
-			if(buffering != null) fos.write(buffering);		
-			fos.close();
-			} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			}
-		}
-      
-      
-     /* public ByteArrayInputStream writeOnStream(byte[] buffering) {
-    	 InputStream is;
-  		try {
-  			
-  			is = new InputStream;
-  			if(buffering != null) bais.		
-  			fos.close();
-  			} catch (IOException e) {
-  			// TODO Auto-generated catch block
-  			e.printStackTrace();
-  			}
-  		}*/
 	/**
 	 * {@inheritDoc}
 	 *
@@ -551,21 +534,36 @@ MegaGlobalListenerInterface {
 	@Override
 	public void onReloadNeeded(MegaApiJava api) {
 		// TODO Auto-generated method stub
-
 	}
+	
+	public void writeOnFile(byte[] buffering) {
+			FileOutputStream fos;
+			try {
+				
+				fos = new FileOutputStream(new File ("C:\\log\\pippo.pdf"), true);
+				if(buffering != null) fos.write(buffering);		
+				fos.close();
+				} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				}
+			}
 
-    public static void printContent(File file) throws Exception {
-        System.out.println("Print File Content");
-        BufferedReader br = new BufferedReader(new FileReader(file));
- 
-        String line = null;
-        while ((line = br.readLine()) != null) {
-            System.out.println(line);
-        }
- 
-        br.close();
-    }
+	public void writeOnStream(byte[] buffering) {
+		
+		try {
+			
+			if(buffering != null) bos.write(buffering);		
+			bos.close();
+			} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			}
+		}
     
+	
+    
+	
 	public static String getCodEsito() {
 		return codEsito;
 	}
@@ -633,6 +631,30 @@ MegaGlobalListenerInterface {
 
 	public void setBuffering(byte[] buffering) {
 		CoreStreamingMegaWs.buffering = buffering;
+	}
+
+
+
+	public static HttpServletResponse getResponse() {
+		return response;
+	}
+
+
+
+	public static void setResponse(HttpServletResponse response) {
+		CoreStreamingMegaWs.response = response;
+	}
+
+
+
+	public static ByteArrayOutputStream getBos() {
+		return bos;
+	}
+
+
+
+	public static void setBos(ByteArrayOutputStream bos) {
+		CoreStreamingMegaWs.bos = bos;
 	}
 
 
