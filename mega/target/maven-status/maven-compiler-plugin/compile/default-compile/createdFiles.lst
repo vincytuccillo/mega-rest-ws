@@ -2,6 +2,7 @@ nz\mega\sdk\DelegateMegaListener$2.class
 nz\mega\sdk\MegaApi.class
 nz\mega\sdk\MegaTreeProcessor.class
 nz\mega\sdk\MegaTransfer.class
+nz\megaRest\mega_rest_ws\controller\NzMegaWsController$1.class
 nz\mega\sdk\DelegateMegaTransferListener$1.class
 nz\mega\sdk\MegaGlobalListener.class
 nz\mega\sdk\MegaContactRequestList.class
@@ -81,6 +82,7 @@ nz\mega\sdk\megaJNI.class
 nz\mega\sdk\MegaApiSwing.class
 nz\mega\sdk\DelegateMegaListener$12.class
 nz\mega\sdk\MegaTransferListener.class
+nz\megaRest\mega_rest_ws\model\MediaStreamer.class
 nz\mega\sdk\DelegateMegaRequestListener$2.class
 nz\mega\sdk\MegaShareList.class
 nz\mega\sdk\DelegateMegaTransferListener$2.class

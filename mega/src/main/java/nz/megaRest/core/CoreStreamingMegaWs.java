@@ -57,15 +57,17 @@ MegaGlobalListenerInterface {
     static final Logger logger = LogManager.getLogger(CoreStreamingMegaWs.class);
 
     public static final String STR_ERROR_INCORRECT_EMAIL_OR_PWD = "Incorrect email or password";
+    private static final int DEFAULT_BUFFER_SIZE = 20480; 
     public static String codEsito;
     public static String errorMessage;
     public static MegaNode temp ;	
     public static HashMap<Integer, String> listModel;
     public static int nodeIndex;
     public static String nodeName;
-    public static byte[] buffering;
-	public static HttpServletResponse response;
+    public byte[] buffering;
 	public static ByteArrayOutputStream bos;
+	public static ByteArrayOutputStream output;
+
 
 	/** Constructor. */
 	public CoreStreamingMegaWs() {
@@ -76,38 +78,20 @@ MegaGlobalListenerInterface {
 		if (megaApi == null) {
 			String path = System.getProperty("user.dir");
 			megaApi = new MegaApiJava(CoreStreamingMegaWs.APP_KEY, path);
+			output = new ByteArrayOutputStream();
 		}
 	}
 	
 	
 	
-	public LoginNzResponse initPlayStreaming(String email, String password,int nodeIndex,String nodeName) {
-		// Log in.
-		logger.info("*** start: login ***");
-		CoreStreamingMegaWs myListener = new CoreStreamingMegaWs();
-		
-		synchronized(myListener.continueEvent) {
-			setNodeIndex(nodeIndex);
-			setNodeName(nodeName);
-			logger.info("*** indice del nodo ***"+ nodeIndex);
-			logger.info("*** nome del nodo ***"+ nodeName);
-			megaApi.login(email, password, myListener);
-			while (!myListener.wasSignalled) {
-				try {
-					myListener.continueEvent.wait();
-				} catch(InterruptedException e) {
-					logger.info("login interrupted: " + e.toString());
-				}
-			}
-			
-			 playStreaming(myListener);
-			 logout(myListener);
-			 myListener.wasSignalled = false;
-			 return new LoginNzResponse (codEsito,errorMessage,bos) ;
+	public LoginNzResponse initPlayStreaming(String email, String password,
+			CoreStreamingMegaWs myListener,int nodeIndex,String nodeName, long startPos, long endPos) {
+		    playStreaming(myListener,startPos, endPos);
+			logout(myListener);
+			myListener.wasSignalled = false;
+			return new LoginNzResponse (codEsito,errorMessage,bos) ;
 		}
-			
-	}
-
+	
 	
 	
 	
@@ -131,7 +115,7 @@ MegaGlobalListenerInterface {
 				}
 			}
 			
-			playStreaming(myListener);
+			streaming(myListener);
 			logout(myListener);
 			myListener.wasSignalled = false;
 			 return new LoginNzResponse (codEsito,errorMessage) ;
@@ -241,7 +225,7 @@ MegaGlobalListenerInterface {
 	logger.info("*** Streaming ***" + temp.getName());
 	myListener.wasSignalled = false;
     synchronized(myListener.continueEvent) {
-    	megaApi.startStreaming(temp, 0, temp.getSize(), myListener );  
+    	megaApi.startStreaming(temp, 229376,29045321, myListener );  
     	while (!myListener.wasSignalled) {
             try {
                 myListener.continueEvent.wait();
@@ -257,16 +241,16 @@ MegaGlobalListenerInterface {
 }   
  
     // Play Streaming.
-    public void playStreaming(CoreStreamingMegaWs myListener) {
+    public void playStreaming(CoreStreamingMegaWs myListener, long startPos, long endPos) {
 	logger.info("*** start: playStreaming ***");
 	logger.info("*** Play Streaming ***" + temp.getName());
 	myListener.wasSignalled = false;
     synchronized(myListener.continueEvent) {
-    	megaApi.startStreaming(temp, 0, temp.getSize(), myListener );  
+    	logger.info("startPos : " + startPos + " - " + "endPos : " + endPos + "myListener : " + myListener);
+    	megaApi.startStreaming(temp, startPos, endPos, myListener );  
     	while (!myListener.wasSignalled) {
             try {
-            	myListener.continueEvent.wait();
-
+                myListener.continueEvent.wait();
             } catch(InterruptedException e) {
                 logger.warn("remove interrupted: " + e.toString());
             }
@@ -277,6 +261,56 @@ MegaGlobalListenerInterface {
     logger.info("*** done: streaming ***");
     
 }   
+    
+    /*public void streamingByte(long startPos, long endPos) {
+    	
+   	 MegaTransferListenerInterface listener = new MegaTransferListenerInterface() {
+				
+				@Override
+				public boolean onTransferData(MegaApiJava api, MegaTransfer transfer, byte[] buffer) {
+					// TODO Auto-generated method stub
+						logger.info("Got transfer data.");
+						buffering = buffer;
+						return true;
+				}
+
+				@Override
+				public void onTransferStart(MegaApiJava api, MegaTransfer transfer) {
+					// TODO Auto-generated method stub
+					logger.info("Transfer start: " + transfer.getFileName());
+					bos = new ByteArrayOutputStream((int)transfer.getDeltaSize());
+					buffering = new byte[DEFAULT_BUFFER_SIZE];
+				}
+
+				@Override
+				public void onTransferFinish(MegaApiJava api, MegaTransfer transfer, MegaError e) {
+					// TODO Auto-generated method stub
+					logger.info("Transfer finished (" + transfer.getFileName()
+					+ "); Result: " + e.toString() + " ");
+					
+					
+				}
+
+				@Override
+				public void onTransferUpdate(MegaApiJava api, MegaTransfer transfer) {
+					// TODO Auto-generated method stub
+					logger.info("Transfer update (" + transfer.getFileName()
+					+ "): " + transfer.getSpeed() + " B/s ");		
+					writeOnStream(buffering);		
+					logger.info(buffering);
+				}
+
+				@Override
+				public void onTransferTemporaryError(MegaApiJava api, MegaTransfer transfer, MegaError e) {
+					// TODO Auto-generated method stub
+					logger.warn("Transfer temporary error (" + transfer.getFileName()
+					+ "); Error: " + e.toString());
+				}
+			};
+			megaApi.startStreaming(temp, startPos,endPos, listener );
+   }  */
+    
+    
     
     
     
@@ -428,7 +462,9 @@ MegaGlobalListenerInterface {
 		logger.info("Transfer finished (" + transfer.getFileName()
 		+ "); Result: " + e.toString() + " ");
 		 // Signal the other thread we're done.
-        
+		
+		
+		
 		synchronized(this.continueEvent){
             this.wasSignalled = true;
             this.continueEvent.notify();
@@ -470,7 +506,7 @@ MegaGlobalListenerInterface {
 	public boolean onTransferData(MegaApiJava api, MegaTransfer transfer,
 			byte[] buffer) {
 		logger.info("Got transfer data.");
-		setBuffering(buffer);
+		this.buffering = buffer;
 		
 		return true;
 	}
@@ -553,7 +589,7 @@ MegaGlobalListenerInterface {
 		
 		try {
 			
-			if(buffering != null) bos.write(buffering);		
+			if(buffering != null) bos.write(buffering);
 			bos.close();
 			} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -564,6 +600,18 @@ MegaGlobalListenerInterface {
 	
     
 	
+	public ByteArrayOutputStream getOutput() {
+		return output;
+	}
+
+
+
+	public void setOutput(ByteArrayOutputStream output) {
+		CoreStreamingMegaWs.output = output;
+	}
+
+
+
 	public static String getCodEsito() {
 		return codEsito;
 	}
@@ -630,30 +678,17 @@ MegaGlobalListenerInterface {
 
 
 	public void setBuffering(byte[] buffering) {
-		CoreStreamingMegaWs.buffering = buffering;
+		this.buffering = buffering;
 	}
 
 
-
-	public static HttpServletResponse getResponse() {
-		return response;
-	}
-
-
-
-	public static void setResponse(HttpServletResponse response) {
-		CoreStreamingMegaWs.response = response;
-	}
-
-
-
-	public static ByteArrayOutputStream getBos() {
+	public  ByteArrayOutputStream getBos() {
 		return bos;
 	}
 
 
 
-	public static void setBos(ByteArrayOutputStream bos) {
+	public  void setBos(ByteArrayOutputStream bos) {
 		CoreStreamingMegaWs.bos = bos;
 	}
 
